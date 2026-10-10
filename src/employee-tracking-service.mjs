@@ -1,3 +1,4 @@
+import { normalizeTracking } from './employee-tracking-model.mjs';
 const TABLE = 'hf_employee_tracking';
 export const BUCKET = 'hf-employee-documents';
 
@@ -5,14 +6,14 @@ export async function loadTracking(sb) {
   const { data, error } = await sb.from(TABLE).select('data,revision,updated_at').eq('id', 1).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('TRACKING_ACCESS');
-  return data;
+  return { ...data, data: normalizeTracking(data.data) };
 }
 
 export async function saveTracking(sb, data, revision) {
   const { data: row, error } = await sb.from(TABLE).update({ data }).eq('id', 1).eq('revision', revision).select('data,revision,updated_at').maybeSingle();
   if (error) throw error;
   if (!row) throw new Error('TRACKING_CONFLICT');
-  return row;
+  return { ...row, data: normalizeTracking(row.data) };
 }
 
 export async function uploadTrackingFile(sb, employeeId, file, photo = false) {

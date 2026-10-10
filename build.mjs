@@ -1,11 +1,12 @@
 import { build } from "esbuild";
+import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, copyFileSync, readdirSync, readFileSync } from "node:fs";
 
 const SUPABASE_URL = "https://rcilynwwfgopfokkxdlf.supabase.co";
 const SUPABASE_ANON = "sb_publishable_vp3O7YHURSEwiKnrMiZ4_Q_9nA6oIJO";
 const OUT = "dist";
-const APP_VERSION = "v23";
+const APP_VERSION = "v25";
 const V = APP_VERSION + "-" + Date.now().toString(36); /* cache-buster: index.html is no-cache, assets get a fresh ?v= on every build */
 
 rmSync(OUT, { recursive: true, force: true });
@@ -24,6 +25,11 @@ await build({
   legalComments: "none",
   charset: "utf8",
 });
+
+await build({ entryPoints: ['src/employee-tracking-report-files.mjs'], outfile: `${OUT}/tracking-reports-v25.js`,
+  bundle: true, minify: true, format: 'iife', globalName: 'HafawaReports', target: ['es2019'],
+  loader: { '.base64': 'text' }, define: { 'process.env.NODE_ENV': '"production"' }, legalComments: 'linked', charset: 'utf8' });
+copyFileSync('src/assets/DejaVu-LICENSE.txt', `${OUT}/DejaVu-LICENSE.txt`);
 
 execSync(`npx tailwindcss -c src/tailwind.config.js -i src/input.css -o ${OUT}/app.css --minify`, { stdio: "inherit" });
 
@@ -57,7 +63,7 @@ writeFileSync(
 <body>
 <div id="root"></div>
 <noscript style="display:block;padding:24px;font-family:Tahoma,sans-serif;text-align:center">هذا النظام يحتاج تفعيل JavaScript في المتصفح.</noscript>
-<script src="app.js?v=${V}"></script>
+<script data-hf-app src="app.js?v=${V}"></script>
 </body>
 </html>
 `
@@ -85,4 +91,5 @@ writeFileSync(
 
 writeFileSync(`${OUT}/.nojekyll`, "");
 writeFileSync(`${OUT}/404.html`, `<meta http-equiv="refresh" content="0;url=./" />`);
+writeFileSync(`${OUT}/SHA256SUMS`, readdirSync(OUT).filter(name => name !== 'SHA256SUMS').sort().map(name => `${createHash('sha256').update(readFileSync(`${OUT}/${name}`)).digest('hex')}  ${name}`).join('\n') + '\n');
 console.log("build ok");
